@@ -152,116 +152,6 @@ def prob_branch(C):
 					return 1.0'''
 
 
-def radial_persistence(title,dir_orient):
-
-	'''
-	Computes betti0 and 1 of perseus file located at title+"_"+dir using cubical complex.
-
-	inputs:
-
-	title : name of perseus file
-	dir   : 'left', 'right', 'top', 'bottom'
-
-	outputs: 
-
-	count0 :  Betti0 (connected componenets topology)
-	count1 :  Betti1 (loops topology)
-
-	'''
-
-	#create cubical complex
-	cc = gd.CubicalComplex(perseus_file=title + '_' + dir_orient)
-	
-	#compute betti0, 1
-	diag = cc.persistence(
-	        homology_coeff_field=2, min_persistence=0)
-
-	#initialize betti0, betti1
-	count0 = 0
-	count1 = 0
-
-	# Add up betti 0, 1
-	for d in diag:
-	    #print(d)
-	    if d[0] == 0:
-	        count0+=1
-	    elif d[0] == 1:
-	    	count1+=1
-
-	return count0, count1
-
-def image_topology(N):
-
-	###
-	### Currently not working and I am diagnosing why
-	###
-
-	xm,ym = N.shape
-
-	st = gd.SimplexTree()
-
-	## look for vertical neighbors
-	vert_neighbors = np.logical_and(N[:-1,:]==1,N[1:,:]==1)
-	a = np.where(vert_neighbors)
-	a = np.hstack((a[0][:,np.newaxis],a[1][:,np.newaxis]))
-	locs = a[:,0] + xm*a[:,1]
-	for j in locs:
-		st.insert([j,j+1],filtration = 0)
-
-	## look for horizontal neighbors
-	horiz_neighbors = np.logical_and(N[:,:-1]==1,N[:,1:]==1)
-	a = np.where(horiz_neighbors)
-	a = np.hstack((a[0][:,np.newaxis],a[1][:,np.newaxis]))
-	locs = a[:,0] + xm*a[:,1]
-	for j in locs:
-		st.insert([j,j+xm],filtration = 0)
-
-	
-	#look for diagonal neighbors (top left to bottom right)
-	diag_neighbors = np.logical_and(N[:-1,:-1]==1,N[1:,1:]==1)
-	a = np.where(diag_neighbors)
-	a = np.hstack((a[0][:,np.newaxis],a[1][:,np.newaxis]))
-	locs = a[:,0] + xm*a[:,1]
-	for j in locs:
-		st.insert([j,j+xm+1],filtration = 0)
-	
-
-	#look for diagonal neighbors (bottom left to top right)
-	diag_neighbors = np.logical_and(N[1:,:-1]==1,N[:-1,1:]==1)
-	a = np.where(diag_neighbors)
-	a = np.hstack((a[0][:,np.newaxis],a[1][:,np.newaxis]))
-	locs = a[:,0] + xm*a[:,1]
-	for j in locs:
-		st.insert([j+1,j+xm],filtration = 0)
-
-	st.set_dimension(2)
-
-	###include 2-simplices (looking for four different types of corners)
-
-	for i in np.arange(xm-1):
-		for j in np.arange(ym-1):
-
-
-			#top left corner:
-			if N[i,j]==1 and N[i+1,j]==1 and N[i,j+1]==1:
-				st.insert([xm*i + j,xm*(i+1) + j , xm*i +j+1],filtration = 0)
-			
-			#top right corner
-			if N[i,j]==1 and N[i+1,j]==1 and N[i+1,j+1]==1:
-				st.insert([i*xm + j, (i+1)*xm+j, (i+1)*xm  + j+1],filtration = 0)
-
-			#bottom left corner
-			if N[i,j]==1 and N[i,j+1]==1 and N[i+1,j+1]==1:
-				st.insert([xm*i + j, i*xm + j+1, xm*(i+1) + j+1],filtration = 0)
-
-			#bottom right corner
-			if N[i+1,j+1]==1 and N[i+1,j]==1 and N[i,j+1]==1:
-				st.insert([xm*(i+1) + j + 1, xm*(i+1) + j, i*xm + j + 1],filtration = 0)
-
-	diag = st.persistence(homology_coeff_field=2)
-
-	return diag
-
 def param_sweep(N,X,filename=None,iter_num = 50,plane_dir='less'):
 	
 	'''
@@ -442,18 +332,6 @@ def level_set_flooding(N,filename=None,iter_num = 50):
 							st.insert([j+1,j+xm],filtration = iterate)
 
 		st.set_dimension(2)
-
-		'''## look for squares of neighbors (vert,horiz, AND diag neighbors)
-								diag_neighbors = np.logical_and(N[:-1,:-1]==1,N[1:,1:]==1)
-								diag_neighbors = np.logical_and(diag_neighbors,vert_neighbors[:,:-1])
-								diag_neighbors = np.logical_and(diag_neighbors,horiz_neighbors[:-1,:])
-								a = np.where(diag_neighbors)
-								a = np.hstack((a[0][:,np.newaxis],a[1][:,np.newaxis]))
-								locs = a[:,0] + xm*a[:,1]
-								for j in locs:
-									st.insert([j,j+1,j+xm,j+xm+1],filtration = iterate)'''
-
-		###include 2-simplices (looking for four different types of corners)
 
 		###include 2-simplices (looking for four different types of corners)
 
@@ -687,119 +565,7 @@ def Persist_im(diag=None,filename=None,filename_save=None,inf_val=25,sigma=1e-1,
 
 	return Ip_ones,Ip_ramp
 
-
-def run_sweep_TDA(N,X,Y,plane_diff=0):
-
-	'''
-	compute and save betti 0 and 1 curves for left to right topology
-	'''
-	
-	#values of the sliding plane will take on
-	r_range = np.linspace(0,1,40)
-
-	features = []
-	features_desc = []
-
-	dirs = ['left']
-
-	# loop through r values
-	for dd in dirs:
-
-		#initialize betti0, betti 1 curves
-		b0_pers = np.zeros(len(r_range))
-		b1_pers = np.zeros(len(r_range))
-
-
-		for j,rr in enumerate(r_range):
-
-
-			#make perseus file of pixels
-			make_image_two_planes(N,X,Y,"angio",r_up=rr,dir=dd,r_low=rr-plane_diff)
-
-			#analyze cubical complex topology of the image
-			b0l, b1l = radial_persistence("angio",dir_orient=dd)
-
-			#record b0,b1
-			b0_pers[j] = b0l
-			b1_pers[j] = b1l
-
-		#save to file
-		
-		features.append(copy.deepcopy(b0_pers))
-		features.append(copy.deepcopy(b1_pers))
-
-		features_desc.append(copy.deepcopy('b0_'+dd))
-		features_desc.append(copy.deepcopy('b1_'+dd))
-
-
-	return features, features_desc
-
-
-def make_image_two_planes(N,X,Y,title,r_up,dir="left",r_low=0):
-		
-	'''
-	Create perseus file from vessel network. This is currently using two sliding plane,
-	so pixels to the left of r_up and the right of r_low are recorded
-
-	description of perseus files provided at the bottom of
-	http://gudhi.gforge.inria.fr/python/latest/fileformats.html
-
-	inputs:
-
-	title 	 : 	title of perseus file (will be saved)
-	r 	     : 	x pixel location of plane
-	'''
-
-	if r_low > r_up:
-		raise Exception("r_up must exceed r_low")
-		
-
-	#initialize file
-	file = open(title + "_" + dir,"w")
-
-
-	m,n = N.shape
-	file.write("2\n")
-	file.write(str(m)+"\n")
-	file.write(str(n)+"\n")
-	for i in np.arange(m-1,-1,-1):
-		for j in np.arange(n):
-
-			#only consider points to left of r
-			if dir == "left":
-
-				if r_low <= X[i,j] and X[i,j] <= r_up:
-					file.write(str(1-N[i,j])+"\n")
-				else:
-					file.write("1\n")
-
-
-			'''#only consider points to right of r
-			elif dir == "right":
-
-				if r_down self.X[i,j] >= r_up:
-					file.write(str(1-self.N[i,j])+"\n")
-				else:
-					file.write("1\n")
-
-			#only consider points below r
-			elif dir == "bottom":
-
-				if self.Y[i,j] <= r_up:
-					file.write(str(1-self.N[i,j])+"\n")
-				else:
-					file.write("1\n")
-
-			#only consider points above r
-			elif dir == "top":
-
-				if self.Y[i,j] >= r_up:
-					file.write(str(1-self.N[i,j])+"\n")
-				else:
-					file.write("1\n")'''
-
-	file.close()
-
+                    
 class angio_abm :
 
 	def __init__(self,
@@ -814,8 +580,8 @@ class angio_abm :
 		self.D = .00035
 		self.alpha = 0.6
 		self.chi = chi
-		self.rho = rho#0.034 ##0.34
-		self.beta = 0.05 ### 1?
+		self.rho = rho
+		self.beta = 0.05
 		self.gamma = 0.1
 		self.eta = 0.1
 		self.psi = psi
@@ -841,13 +607,12 @@ class angio_abm :
 
 
 		self.dt = 0.01
-		self.t_final = t_final#np.int(4.0//self.dt)
+		self.t_final = t_final
 		self.time_grid = np.arange(0,self.t_final,self.dt)
 
 		self.write_folder = 'results/'
 
-		#self.file_name = 'IC_'+self.IC + '_rho_'+str(round(self.rho,2))+'_chi_'+str(round(self.chi,2))
-		self.file_name = 'IC_'+self.IC + '_rho_'+str(round(self.rho,2))+'_chi_'+str(round(self.chi,2)) + '_psi_' + str(round(self.psi,2))
+		self.file_name = 'IC_'+self.IC + '_rho_'+str(round(self.rho,2))+'_chi_'+str(round(self.chi,2))
 		
 		if os.path.isdir(self.write_folder) == False:
 			os.mkdir(self.write_folder)
@@ -855,7 +620,7 @@ class angio_abm :
 
 		#initialize sprouts
 
-		self.cell_locs = [[0,.1],[0,.2],[0,.3],[0,.4],[0,.5],[0,.6],[0,.7],[0,.8],[0,.9]]#[0,.17],[0,.3],[0,.5],[0,.65],[0,.84]]		
+		self.cell_locs = [[0,.1],[0,.2],[0,.3],[0,.4],[0,.5],[0,.6],[0,.7],[0,.8],[0,.9]]
 		self.sprouts = []
 		self.sprout_ages = []
 
@@ -907,7 +672,6 @@ class angio_abm :
 		'''
 
 		if self.chemo_rate == 'hill':
-			#### from Chap-Anderson paper.
 			return self.chi/(1+self.alpha*self.C[n])
 		elif self.chemo_rate == 'const':
 			return self.chi
@@ -916,11 +680,9 @@ class angio_abm :
 
 		'''
 		Set the initial sprout locations for the model
-
 		'''
 		
 		for c in self.cell_locs:
-			#self.new_sprout([tuple((np.where(self.x==0)[0][0],np.argmin(np.abs(self.y-c))))])
 			self.new_sprout([tuple((np.argmin(np.abs(self.x-c[0])),np.argmin(np.abs(self.y-c[1]))))])
 
 	def record_bio_data(self):
@@ -1101,8 +863,6 @@ class angio_abm :
 			self.C[n] = self.C[n]*(1-self.dt*self.eta*1)
 
 	def branch(self):
-
-
 		'''
 		Determine if a tip cell should branch. If so, determine where daughter cell is placed
 
@@ -1244,7 +1004,6 @@ class angio_abm :
 			plt.savefig('figures/' + title+'.pdf', format='pdf')
 
 
-	
 	def plot_bio_summaries(self,t):
 
 
@@ -1271,72 +1030,6 @@ class angio_abm :
 		
 		plt.savefig("ChapAndSim_"+str(t)+".png",dvips=500)
 
-
-	def plot_sprouts(self,t):
-
-		'''
-		Save image of vessel network 
-
-		'''
-		
-
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-		ax.set_title(str(t))
-		ax.contourf(self.X,self.Y,self.C)
-		
-		for n in self.sprouts:
-			idx2=tuple(np.array(n).T)
-			plt.plot(self.X[idx2],self.Y[idx2],'w')
-
-		plt.savefig("ChapAndSim_"+t+".png",dvips=500)
-
-	
-	def save_LR_TDA(self,num):
-
-		'''
-		compute and save betti 0 and 1 curves for left to right topology
-		'''
-		
-		#values of the sliding plane will take on
-		r_range = np.linspace(0,1,40)
-
-		#orientations
-		dirs = ['left','right','top','bottom']
-
-		data = {}
-		data['r'] = r_range
-
-		# loop through r values
-		for dd in dirs:
-
-			#initialize betti0, betti 1 curves
-			b0_pers = np.zeros(len(r_range))
-			b1_pers = np.zeros(len(r_range))
-
-
-			for j,rr in enumerate(r_range):
-
-
-				#make perseus file of pixels
-				self.make_image("angio",r=rr,dir=dd)
-
-				#analyze cubical complex topology of the image
-				b0l, b1l = radial_persistence("angio",dir_orient=dd)
-
-				#record b0,b1
-				b0_pers[j] = b0l
-				b1_pers[j] = b1l
-
-			#save to file
-			
-			data['b0_'+dd] = copy.deepcopy(b0_pers)
-			data['b1_'+dd] = copy.deepcopy(b1_pers)
-
-			
-
-		np.save(self.write_folder + 'angio_TDA_data_'+ self.file_name +'_real_'+str(num),data)
-		
 	def save_flooding_TDA(self,num):
 
 		'''
@@ -1366,7 +1059,7 @@ class angio_abm :
 		compute level-set flooding topology and corresponding persistence image
 		'''
 
-		orients = ['left','right']#,'top','bottom']
+		orients = ['left']#,'right','top','bottom']
 
 		for orient in orients:
 
@@ -1446,64 +1139,3 @@ class angio_abm :
 		gif_list = glob.glob('figures/gif_*')
 		for g in gif_list:
 			os.remove(g)
-
-	def make_image(self,title,r,dir):
-		
-		'''
-		Create perseus file from vessel network. This is currently using a sliding plane,
-		so only pixels to the left of r are recorded
-
-		description of perseus files provided at the bottom of
-		http://gudhi.gforge.inria.fr/python/latest/fileformats.html
-
-		inputs:
-
-		title 	 : 	title of perseus file (will be saved)
-		r 	     : 	x pixel location of plane
-		'''
-
-		#initialize file
-		file = open(title + "_" + dir,"w")
-
-
-		m,n = self.N.shape
-		file.write("2\n")
-		file.write(str(m)+"\n")
-		file.write(str(n)+"\n")
-		for i in np.arange(m-1,-1,-1):
-		    for j in np.arange(n):
-		    	
-		    	#only consider points to left of r
-		    	if dir == "left":
-
-			    	if self.X[i,j] <= r:
-			    		file.write(str(1-self.N[i,j])+"\n")
-		    		else:
-		    			file.write("1\n")
-
-
-    			#only consider points to right of r
-		    	elif dir == "right":
-
-			    	if self.X[i,j] >= r:
-			    		file.write(str(1-self.N[i,j])+"\n")
-		    		else:
-		    			file.write("1\n")
-
-    			#only consider points below r
-		    	elif dir == "bottom":
-
-			    	if self.Y[i,j] <= r:
-			    		file.write(str(1-self.N[i,j])+"\n")
-		    		else:
-		    			file.write("1\n")
-
-    			#only consider points above r
-		    	elif dir == "top":
-
-			    	if self.Y[i,j] >= r:
-			    		file.write(str(1-self.N[i,j])+"\n")
-		    		else:
-		    			file.write("1\n")
-
-		file.close()
