@@ -16,221 +16,6 @@ from sklearn import svm
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix, accuracy_score
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.cluster import KMeans
-
-def cross_val_svm(X,y,fold = 5):
-
-    clf = svm.SVC(kernel = 'linear')
-    scores = cross_val_score(clf,X,y,cv=5)
-    
-    return scores
-    
-
-def train_val_confusion(X,y,title_list,test_size=0.2,filename=None,random_state=0):
-
-	##### do one train-val split, create confusion matrix
-	X_train, X_test, y_train, y_test = train_test_split(X, y, 
-									test_size=test_size, random_state=random_state)
-
-	clf = svm.SVC(kernel = 'linear')
-	clf.fit(X_train,y_train)
-
-	prediction = clf.predict(X_test)
-	acc_tot = np.sum(prediction==y_test)/len(y_test)
-
-	#plt.figure()    
-	disp = plot_confusion_matrix(clf,X_test,y_test,normalize='true',display_labels = title_list,cmap=plt.cm.Blues)
-
-	disp.ax_.set_title("Accuracy = "+str(round(100*acc_tot,1)))
-
-	if filename is not None:
-		plt.savefig("figures/"+filename+".pdf",format="pdf")
-
-
-def clustering(X,labels,num_clusters=8,filename=None):
-
-	kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(X)
-
-	kmeans_class = kmeans.labels_
-
-	fig = plt.figure(figsize=(6,6))
-	count = 1
-
-	width = np.ceil(np.sqrt(num_clusters))
-	
-	for label in np.arange(num_clusters):
-		ax = fig.add_subplot(width,width,count)
-		'''ax.hist(labels[kmeans_class==label],bins=np.arange(10),align='left',rwidth=0.75)
-		ax.set_xticks(np.arange(9))
-		ax.set_ylim([0,10])
-		ax.set_title("Kmeans, class "+str(label))
-		if count > 6 :
-			ax.set_xlabel("True Classes")
-		count += 1'''
-		ax.set_title("Kmeans, class "+str(label))
-		unique, counts = np.unique(labels[kmeans_class==label], return_counts=True)
-		class_count = np.zeros((9,))
-		for i,u in enumerate(unique): 
-			class_count[np.int(u)] = counts[i]
-		count += 1
-    
-		#ax = fig.add_subplot(2,2,count)
-		ax.matshow(class_count.reshape(3,3),cmap='binary',vmin=0,vmax=10)
-
-		ax.set_xticks([])
-		ax.set_yticks([])
-
-	if filename is not None:
-		plt.savefig("figures/"+filename+".pdf",format="pdf")
-
-	return kmeans_class
-
-def clustering_fine(X,labels,chi_len,rho_len,num_clusters=8,filename=None):
-
-	#perform k-means
-	kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(X)
-
-	
-	#retrieve labels
-	kmeans_class = kmeans.labels_
-	inertia = kmeans.inertia_
-	#initalize figure
-	fig = plt.figure(figsize=(6,6))
-	km_class = 1
-	width = np.ceil(np.sqrt(num_clusters))
-
-	for label in np.arange(num_clusters):
-		ax = fig.add_subplot(width,width,km_class)
-	
-
-		ax.set_title("Kmeans, class "+str(label))
-		
-		#counting number of occurences of each true class from each kmeans class
-		unique, counts = np.unique(labels[kmeans_class==label], return_counts=True)
-		class_count = np.zeros((chi_len*rho_len,))
-		for i,u in enumerate(unique): 
-			class_count[np.int(u)] = counts[i]
-		km_class += 1
-    
-		#ax = fig.add_subplot(2,2,count)
-		ax.matshow(class_count.reshape(chi_len,rho_len),cmap='binary',vmin=0,vmax=10)
-
-		ax.set_xticks([])
-		ax.set_yticks([])
-		ax.set_xlabel(r'$\rho$',fontsize=8)
-		ax.set_ylabel(r'$\chi$',fontsize=8)
-
-	if filename is not None:
-		plt.savefig("figures/"+filename+".pdf",format="pdf")
-
-	return kmeans_class,inertia
-
-def clustering_fine_onefig(X,chi_range,rho_range,real_range,num_clusters=8,filename=None):
-
-	X_train = X[real_range<8,:]
-	X_test = X[real_range>=8,:]
-
-	rho_train = rho_range[real_range<8]
-	chi_train = chi_range[real_range<8]
-
-	rho_test = rho_range[real_range>=8]
-	chi_test = chi_range[real_range>=8]
-	#perform k-means
-	kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(X)
-
-	#retrieve labels
-	kmeans_class = kmeans.labels_
-	
-	chi_vec = np.unique(chi_range)
-	rho_vec = np.unique(rho_range)
-
-	common_label = np.zeros((len(rho_vec),len(chi_vec)))
-
-
-	#determine training labels based on classification of (chi,rho) region
-	for j,chi in enumerate(chi_vec):
-		for i,rho in enumerate(rho_vec):
-
-			chi_rho_range = np.where(np.logical_and(chi_train==chi,rho_train==rho))[0]
-			chi_rho_labels = kmeans_class[chi_rho_range]
-
-			counts = np.bincount(chi_rho_labels)
-			common_label[i,j] = np.argmax(counts)
-
-	#Now use these training labels to create the test labels
-	for j,chi in enumerate(chi_vec):
-		for i,rho in enumerate(rho_vec):
-
-			chi_rho_range = np.where(np.logical_and(chi_test==chi,rho_test==rho))[0]
-			chi_rho_labels[chi_rho_range] = common_label[i,j]
-
-			
-	
-	if num_clusters == 4:
-		cmaplist = [(0.0,0.0,0.0),(0.0,0.0,1.0),(1.0,0.0,0.0),(1.0,1.0,0.0)]
-	elif num_clusters == 5:
-		cmaplist = [(0.0,0.0,0.0),(0.0,0.0,1.0),(1.0,0.0,0.0),(1.0,1.0,0.0),(1.0,1.0,1.0)]
-	elif num_clusters == 6:
-		cmaplist = [(0.0,0.0,0.0),(0.0,0.0,1.0),(1.0,0.0,0.0),(1.0,1.0,0.0),(0.0,1.0,0.0),(1.0,1.0,1.0)]
-	elif num_clusters == 7:
-		cmaplist = [(0.0,0.0,0.0),(0.0,0.0,1.0),(1.0,0.0,0.0),(1.0,1.0,0.0),(0.0,1.0,0.0),(.5,.5,.5),(1.0,1.0,1.0)]
-	
-	cmap = mpl.colors.LinearSegmentedColormap.from_list('Custom cmap', cmaplist, N = num_clusters)
-
-	plt.matshow(common_label.T,cmap=cmap)
-	plt.colorbar()
-	plt.ylabel("$\chi$")
-	plt.xlabel(r"$\rho$")
-	plt.title("Parameter clustering")
-
-	
-
-	if filename is not None:
-		plt.savefig("figures/"+filename+".pdf",format="pdf")
-			
-	return kmeans_class
-
-def create_latex_table_classification(X_vec,title_list,chi_range,rho_range,real_range,num_clusters=8):
-
-	print("\\begin{tabular}{|c|c|c|}")
-	print("\\hline")
-	print("Feature & In Sample Accuracy & Out of Sample Accuracy \\\\ ")
-	print("\\hline")
-	for i,X in enumerate(X_vec):
-		kmeans_classes,acc,acc_in_sample,centers = clustering_fine_train_test(X,chi_range,rho_range,
-                                                    real_range,num_clusters=num_clusters)#,
-
-		print(title_list[i] + " & " + str(round(acc_in_sample*100,1)) + "\% & " + str(round(acc*100,1)) + "\% \\\\")
-		print("\\hline")
-
-	print("\\end{tabular}")
-	print("\\caption{Out of Sample Accuracy scores for various feature vectors using $k$-means classification.}")
-
-def create_latex_table_classification_sort(X_vec,title_list,chi_range,rho_range,real_range,num_clusters=8):
-    acc = []
-    acc_in_sample = []
-
-    for X in X_vec:
-
-        _,acc_tmp,acc_in_sample_tmp,centers = clustering_fine_train_test(X,chi_range,rho_range,
-                                                        real_range,num_clusters=num_clusters)
-
-        acc.append(acc_tmp)
-        acc_in_sample.append(acc_in_sample_tmp)
-
-
-    print("\\begin{tabular}{|c|c|c|}")
-    print("\\hline")
-    print("Feature & In Sample Accuracy & Out of Sample Accuracy \\\\ ")
-    print("\\hline")
-    
-    for i in np.argsort(acc)[::-1]:
-    
-        print(title_list[i] + " & " + str(round(acc_in_sample[i]*100,1)) + "\% & " + str(round(acc[i]*100,1)) + "\% \\\\")
-        print("\\hline")
-
-    print("\\end{tabular}")
-    print("\\caption{Accuracy sample scores for various feature vectors using $k$-means classification. LTR: Left to right topology, RTL: Right to left topology, TTB: Top to bottom topology, BTT: Bottom to top topology, PIR: Persistence image with ramp weighting, PIO: Persistence image with one weighting, BC: Betti Curve.}")
-    
     
 def clustering_fine_train_test(X,chi_range,rho_range,real_range,num_clusters=8,filename=None,title=None):
 
@@ -397,42 +182,32 @@ def clustering_fine_train_test(X,chi_range,rho_range,real_range,num_clusters=8,f
 			plt.title("Parameter clustering, ("+str(round(acc*100,1))+"% OOS Accuracy)")
 
 		plt.savefig("figures/"+filename+"_param_clustering.pdf",format="pdf")
-		'''ax.set_xticks([0,1,2,3,4])       
-		ax.set_yticks([0,2,4,6,8])               
-        
-		ax.set_xticklabels([0,1,2,3,4])
-		ax.set_yticklabels(chi_vec[::-2])
-        
-		cticks = np.arange(0.5*((num_clusters-1)/num_clusters),num_clusters-1,(num_clusters-1)/num_clusters).tolist()        
-        
-		cbar = fig.colorbar(cax,ticks = cticks)
-		cbar.ax.set_yticklabels(np.arange(num_clusters).tolist())
-        
-		plt.ylabel("Branching ($\psi$)")
-		plt.xlabel(r"($\chi,\rho$) Grouping")
-
-		if title is not None:
-			plt.title(title + " clustering")
-		else:
-			plt.title("Parameter clustering, ("+str(round(acc*100,1))+"% OOS Accuracy)")
-
-		plt.savefig("figures/"+filename+"_vary_psi_param_clustering.pdf",format="pdf")'''
-
 	kmeans_class = kmeans.predict(X)    
 			
 	return kmeans_class,acc,acc_in_sample,centers
 
+def create_latex_table_classification_sort(X_vec,title_list,chi_range,rho_range,real_range,num_clusters=8):
+    acc = []
+    acc_in_sample = []
+
+    for X in X_vec:
+
+        _,acc_tmp,acc_in_sample_tmp,centers = clustering_fine_train_test(X,chi_range,rho_range,
+                                                        real_range,num_clusters=num_clusters)
+
+        acc.append(acc_tmp)
+        acc_in_sample.append(acc_in_sample_tmp)
 
 
+    print("\\begin{tabular}{|c|c|c|}")
+    print("\\hline")
+    print("Feature & In Sample Accuracy & Out of Sample Accuracy \\\\ ")
+    print("\\hline")
+    
+    for i in np.argsort(acc)[::-1]:
+    
+        print(title_list[i] + " & " + str(round(acc_in_sample[i]*100,1)) + "\% & " + str(round(acc[i]*100,1)) + "\% \\\\")
+        print("\\hline")
 
-def clustering_inertia(X,labels,num_clusters=8):
-
-	#perform k-means
-	kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(X)
-
-	
-	#retrieve labels
-	kmeans_class = kmeans.labels_
-	inertia = kmeans.inertia_
-	
-	return kmeans_class,inertia
+    print("\\end{tabular}")
+    print("\\caption{Accuracy sample scores for various feature vectors using $k$-means classification. LTR: Left to right topology, RTL: Right to left topology, TTB: Top to bottom topology, BTT: Bottom to top topology, PIR: Persistence image with ramp weighting, PIO: Persistence image with one weighting, BC: Betti Curve.}")
