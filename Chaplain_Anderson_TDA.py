@@ -43,60 +43,62 @@ psi = 0.1
 fig = plt.figure()
 count = 1
 
-for hapt in hapt_vec:
-    for chi in chi_vec:
+for i in np.arange(10,90+ABM_sims):
+    
+    #print(i)
+    print("")
+    for hapt in hapt_vec:
+        for chi in chi_vec:
 
-        print(hapt,chi)
-
-        for i in np.arange(10,10+ABM_sims):
-            
-            print("    " + str(i))
-            
-            #initialize ABM simulation
-            A = angio_abm(C_dist,
-                          rho = hapt,
-                          t_final = final_time,
-                          chi = chi,
-                          chemo_rate = chemo_rate,
-                          psi = psi)
-
-            #initialize chemoattractant and TAF grids, sprout locations
-            A.IC_generate()
-            A.sprout_initialize()
-
-            #Record biological data (sprouts, tips, branches)
-            A.record_bio_data()
-
-            #Run the ABM until either one of the sprouts reaches x=0.95
-            #or when time exceeds max_sim_time
-            j = 0
-            max_x = 0
-            while max_x < 0.95:
+                print(i)
+                print(hapt,chi)
+                print("")
                 
-                #move sprouts
-                A.move_sprouts()
-                #update TAF , chemoattractant
-                A.update_grids()
-                #perform branching
-                A.branch()
-                
-                #Save bio info
+                #initialize ABM simulation
+                A = angio_abm(C_dist,
+                              rho = hapt,
+                              t_final = final_time,
+                              chi = chi,
+                              chemo_rate = chemo_rate,
+                              psi = psi)
+
+                #initialize chemoattractant and TAF grids, sprout locations
+                A.IC_generate()
+                A.sprout_initialize()
+
+                #Record biological data (sprouts, tips, branches)
                 A.record_bio_data()
 
-                #max x value reached by sprout tips
-                max_x = np.max(A.X[A.N==1])
+                #Run the ABM until either one of the sprouts reaches x=0.95
+                #or when time exceeds max_sim_time
+                j = 0
+                max_x = 0
+                while max_x < 0.95:
 
-                j+=1
-                if A.dt*j > final_time:
-                    #stop simulation if time exceeds max_sim_time
-                    break
+                    #move sprouts
+                    A.move_sprouts()
+                    #update TAF , chemoattractant
+                    A.update_grids()
+                    #perform branching
+                    A.branch()
 
-            A.save_bio_data(i)
+                    #Save bio info
+                    A.record_bio_data()
 
-            #save left-to-right Topology data
-            A.plane_sweeping_TDA(i)
+                    #max x value reached by sprout tips
+                    max_x = np.max(A.X[A.N==1])
 
-            #A.save_flooding_TDA(i)
+                    j+=1
+                    if A.dt*j > final_time:
+                        #stop simulation if time exceeds max_sim_time
+                        break
+
+                A.save_bio_data(i)
+
+                #save left-to-right Topology data
+                A.plane_sweeping_TDA(i)
+
+                A.save_flooding_TDA(i)
             
 
 
