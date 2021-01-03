@@ -1,6 +1,7 @@
 # angiogenesis_TDA
  
 Code for "Topological data analysis distinguishes parameter regimes in the Anderson-Chaplain model of angiogenesis" by John Nardini, Bernadette Stolz, Kevin Flores, Heather Harrington, and Helen Byrne. 
+
 angio.py is the main code for this document, as it includes the angio_abm class, simulates the Anderson-Chaplain agent-based model of tumor-induced angiogenesis. 
 
 ## Code description
@@ -18,3 +19,4 @@ Step (3) of our analysis is performed in bio_clustering_standard_descriptors.ipy
 We used Gudhi for implementation of our data analysis. 
 
 Please contact John Nardini at jtnardin@ncsu.edu if you have any questions.
+
